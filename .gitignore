@@ -41,3 +41,7 @@ app-example
 # generated native folders
 /ios
 /android
+
+# allow the app gradle file
+!/android/app
+!/android/app/build.gradle
