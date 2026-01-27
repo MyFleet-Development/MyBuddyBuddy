@@ -40,8 +40,17 @@ app-example
 
 # generated native folders
 /ios
-/android
 
-# allow the app gradle file
-!/android/app
-!/android/app/build.gradle
+# Android — ignore build output, not config
+android//build/
+android/.gradle/
+
+explicitly track android project files
+!android/
+!android/app/
+!android/build.gradle
+!android/app/build.gradle
+!android/settings.gradle
+!android/gradlew
+!android/gradlew.bat
+!android/gradle/wrapper/
