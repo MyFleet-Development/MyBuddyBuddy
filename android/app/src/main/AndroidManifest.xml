@@ -1,5 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
@@ -28,12 +27,13 @@
         <data android:scheme="mybuddybuddy"/>
       </intent-filter>
     </activity>
-<receiver
-    android:name="androidx.profileinstaller.ProfileInstallReceiver"
-    android:enabled="false"
-    android:exported="false"
-    tools:node="merge"
-    tools:replace="android:enabled,android:exported" />
-
+    <activity android:name="com.auth0.android.provider.RedirectActivity" tools:node="replace" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="com.myfleet.mybuddybuddy.auth0" android:pathPrefix="/android/com.myfleet.mybuddybuddy/callback" android:host="myfleet.au.auth0.com"/>
+      </intent-filter>
+    </activity>
   </application>
 </manifest>

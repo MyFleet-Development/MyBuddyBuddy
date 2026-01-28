@@ -1,4 +1,4 @@
-package com.anonymous.mybuddybuddy
+package com.myfleet.mybuddybuddy
 
 import android.app.Application
 import android.content.res.Configuration

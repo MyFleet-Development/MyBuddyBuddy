@@ -1,4 +1,4 @@
-package com.anonymous.mybuddybuddy
+package com.myfleet.mybuddybuddy
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

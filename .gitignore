@@ -42,10 +42,20 @@ app-example
 /ios
 
 # Android — ignore build output, not config
-android//build/
+android/build/
 android/.gradle/
+android/app/build/
+android/.idea/
+android/*.iml
+android/**/*.iml
+android/.cxx/
+android/**/.cxx/
+android/*.hprof
+android/*.jsbundle
+android/captures/
+android/local.properties
 
-explicitly track android project files
+# Explicitly track android project files
 !android/
 !android/app/
 !android/build.gradle

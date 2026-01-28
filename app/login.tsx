@@ -1,8 +1,9 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   ImageBackground,
   Pressable,
@@ -14,16 +15,34 @@ import { useAuth0 } from "react-native-auth0";
 
 export default function LoginScreen() {
   const { authorize, error, isLoading, user } = useAuth0();
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.replace("/(tabs)");
+    }
+  }, [user]);
 
   const handleLogin = async () => {
     try {
+      setIsAuthenticating(true);
+      setLoginError(null);
       await authorize({
         scope: "openid profile email", // add offline_access later if needed
       });
-
-      router.replace("/(tabs)");
-    } catch (e) {
+      // Keep spinner showing - navigation will happen via useEffect when user is set
+    } catch (e: any) {
       console.log("Auth0 login error:", e);
+      setIsAuthenticating(false);
+      
+      // Handle user cancellation gracefully
+      if (e.message?.includes("cancelled") || e.message?.includes("canceled")) {
+        setLoginError("Login was cancelled");
+      } else {
+        setLoginError("Unable to login. Please try again.");
+      }
     }
   };
 
@@ -55,26 +74,30 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.center}>
-          <Pressable
-            style={[styles.loginButton, isLoading && { opacity: 0.7 }]}
-            onPress={handleLogin}
-            disabled={isLoading}
-          >
-            <Text style={styles.loginButtonText}>
-              {isLoading ? "Loading..." : "Login"}
-            </Text>
-          </Pressable>
+          {isAuthenticating || user ? (
+            // Show loading when auth completed or user exists
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#2EA6FF" />
+              <Text style={styles.loadingText}>Loading...</Text>
+            </View>
+          ) : (
+            <>
+              <Pressable
+                style={[styles.loginButton, isLoading && { opacity: 0.7 }]}
+                onPress={handleLogin}
+                disabled={isLoading}
+              >
+                <Text style={styles.loginButtonText}>
+                  {isLoading ? "Loading..." : "Login"}
+                </Text>
+              </Pressable>
 
-          {!!error && (
-            <Text style={{ color: "tomato", marginTop: 12 }}>
-              {error.message}
-            </Text>
-          )}
-
-          {!!user && (
-            <Text style={{ color: "white", marginTop: 12 }}>
-              Logged in as {user.name}
-            </Text>
+              {(loginError || error) && (
+                <Text style={styles.errorText}>
+                  {loginError || error?.message}
+                </Text>
+              )}
+            </>
           )}
         </View>
 
@@ -113,6 +136,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loginButtonText: { color: "#0A0F16", fontSize: 16, fontWeight: "600" },
+  loadingContainer: {
+    alignItems: "center",
+    gap: 12,
+  },
+  loadingText: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 16,
+  },
+  errorText: {
+    color: "#FF6B6B",
+    marginTop: 12,
+    fontSize: 14,
+    textAlign: "center",
+  },
   footer: {
     position: "absolute",
     bottom: 64,

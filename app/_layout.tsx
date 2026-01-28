@@ -18,8 +18,8 @@ export default function RootLayout() {
 
   return (
     <Auth0Provider
-      domain="dev-ozyi8thugue5owac.us.auth0.com"
-      clientId="H94kBv9l5bUcwdeLd5tUqkrPQDQZxoQy"
+      domain="myfleet.au.auth0.com"
+      clientId="GqPuIYaGsGub4jFFmRepafZLi6PoAXv3"
     >
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }}>

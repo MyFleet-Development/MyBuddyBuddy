@@ -87,22 +87,16 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.mybuddybuddy'
-defaultConfig {
-    applicationId 'com.anonymous.mybuddybuddy'
-    minSdkVersion rootProject.ext.minSdkVersion
-    targetSdkVersion rootProject.ext.targetSdkVersion
-    versionCode 1
-    versionName "1.0.0"
+    namespace 'com.myfleet.mybuddybuddy'
+    defaultConfig {
+        applicationId 'com.myfleet.mybuddybuddy'
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
 
-    manifestPlaceholders = [
-        auth0Domain: "dev-ozyi8thugue5owac.us.auth0.com",
-        auth0Scheme: "mybuddybuddy",
-    ]
-
-    buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
-}
-
+        buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -161,6 +155,9 @@ defaultConfig {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    
+    // Chrome Custom Tabs for Auth0 (prevents WebView crashes)
+    implementation("androidx.browser:browser:1.7.0")
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
