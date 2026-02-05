@@ -2,12 +2,21 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
+import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth0 } from "react-native-auth0";
 
+import NfcManager from "react-native-nfc-manager";
+
 export default function ScanCardScreen() {
   const { user, clearCredentials } = useAuth0();
+
+  // ✅ NFC local state
+  const [nfcSupported, setNfcSupported] = useState<boolean | null>(null);
+  const [nfcEnabled, setNfcEnabled] = useState<boolean | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [lastTagId, setLastTagId] = useState<string | null>(null);
+  const [nfcError, setNfcError] = useState<string | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -17,17 +26,93 @@ export default function ScanCardScreen() {
       console.log("Logout error:", e);
     }
   };
+
+  // ✅ NFC init + auto start scanning
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const supported = await NfcManager.isSupported();
+        if (!mounted) return;
+
+        setNfcSupported(supported);
+        if (!supported) return;
+
+        await NfcManager.start();
+
+        const enabled = await NfcManager.isEnabled();
+        if (!mounted) return;
+
+        setNfcEnabled(enabled);
+        if (enabled) {
+          startScan();
+        }
+      } catch (e: any) {
+        if (!mounted) return;
+        setNfcError(e?.message ?? "Failed to initialise NFC");
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      stopScan();
+    };
+  }, []);
+
+  const startScan = async () => {
+    setNfcError(null);
+    setLastTagId(null);
+
+    if (nfcSupported === false) return;
+    if (nfcEnabled === false) return;
+    if (isScanning) return;
+
+    try {
+      setIsScanning(true);
+
+      await NfcManager.registerTagEvent((tag) => {
+        const id = (tag as any)?.id ?? null;
+        setLastTagId(id ?? "UNKNOWN");
+        setIsScanning(false);
+
+        NfcManager.unregisterTagEvent().catch(() => {});
+      });
+    } catch (e: any) {
+      setIsScanning(false);
+      setNfcError(e?.message ?? "NFC scan failed");
+      NfcManager.unregisterTagEvent().catch(() => {});
+      NfcManager.cancelTechnologyRequest().catch(() => {});
+    }
+  };
+
+  const stopScan = async () => {
+    try {
+      await NfcManager.unregisterTagEvent();
+    } catch {}
+    try {
+      await NfcManager.cancelTechnologyRequest();
+    } catch {}
+    setIsScanning(false);
+  };
+
+  const statusText = (() => {
+    if (nfcSupported === false) return "NFC not supported on this device";
+    if (nfcEnabled === false) return "NFC is disabled in system settings";
+    if (lastTagId) return `Detected ✅ (${lastTagId})`;
+    if (isScanning) return "Scanning…";
+    return "Ready to scan";
+  })();
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
 
-      {/* Dark background */}
       <LinearGradient
         colors={["#050A10", "#0A0F16", "#050A10"]}
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Header */}
       <View style={styles.header}>
         <Image
           source={require("../../assets/images/icon.png")}
@@ -37,7 +122,6 @@ export default function ScanCardScreen() {
         <Text style={styles.headerTitle}>Driver Onboarding</Text>
       </View>
 
-      {/* Content */}
       <View style={styles.content}>
         {user && (
           <View style={styles.userInfo}>
@@ -54,25 +138,36 @@ export default function ScanCardScreen() {
         <Text style={styles.title}>Scan your ID tag</Text>
 
         <MaterialCommunityIcons
-          name="access-point"
+          name={isScanning ? "nfc-tap" : "access-point"}
           size={110}
           color="#2EA6FF"
           style={{ marginTop: 26 }}
         />
+
+        {/* ✅ simple status + error */}
+        <Text style={{ color: "rgba(255,255,255,0.85)", marginTop: 14 }}>
+          {statusText}
+        </Text>
+        {nfcError ? (
+          <Text style={{ color: "#FF6B6B", marginTop: 8 }}>{nfcError}</Text>
+        ) : null}
+
+        {/* ✅ optional manual control (handy for testing) */}
         <Pressable
           style={{
-            marginTop: 26,
+            marginTop: 18,
             height: 44,
             width: 220,
             borderRadius: 6,
             backgroundColor: "#2EA6FF",
             alignItems: "center",
             justifyContent: "center",
+            opacity: nfcSupported === false || nfcEnabled === false ? 0.5 : 1,
           }}
-          onPress={() => router.push("/DriverDetails")}
+          onPress={isScanning ? stopScan : startScan}
         >
           <Text style={{ color: "#0A0F16", fontWeight: "700" }}>
-            Go to Driver Details
+            {isScanning ? "Stop scanning" : "Scan"}
           </Text>
         </Pressable>
 
