@@ -1,7 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
 import {
   Image,
   Pressable,
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 
 export default function DriverDetailsScreen() {
+  const { tagId } = useLocalSearchParams<{ tagId?: string }>();
   return (
     <View style={styles.root}>
       <StatusBar style="light" />

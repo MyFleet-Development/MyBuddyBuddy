@@ -1,3 +1,4 @@
+import { AppStateProvider } from "@/contexts/AppStateContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   DarkTheme,
@@ -21,19 +22,23 @@ export default function RootLayout() {
       domain="myfleet.au.auth0.com"
       clientId="GqPuIYaGsGub4jFFmRepafZLi6PoAXv3"
     >
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="login" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="DriverDetails" />
-          <Stack.Screen
-            name="modal"
-            options={{ presentation: "modal", title: "Modal" }}
-          />
-        </Stack>
+      <AppStateProvider>
+        <ThemeProvider
+          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+        >
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="login" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="DriverDetails" />
+            <Stack.Screen
+              name="modal"
+              options={{ presentation: "modal", title: "Modal" }}
+            />
+          </Stack>
 
-        <StatusBar style="light" />
-      </ThemeProvider>
+          <StatusBar style="light" />
+        </ThemeProvider>
+      </AppStateProvider>
     </Auth0Provider>
   );
 }
