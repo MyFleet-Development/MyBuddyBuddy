@@ -1,32 +1,65 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { useAuth0 } from "react-native-auth0";
-
 import { useAppState } from "@/contexts/AppStateContext";
 import { useNFC } from "@/hooks/useNFC";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { router, useFocusEffect } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React from "react";
+import {
+  ActivityIndicator,
+  Animated,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useAuth0 } from "react-native-auth0";
+
+// Module-level lock — lives outside React's render cycle so it's truly synchronous
+let _isProcessingTag = false;
 
 export default function ScanCardScreen() {
   const { user, clearCredentials } = useAuth0();
 
-  // useNFC hook provides NFC status and controls, and updates AppStateContext with detected tags
   const {
     isSupported: nfcSupported,
     isEnabled: nfcEnabled,
     isScanning,
     startScanning,
-    stopScanning,
     error: nfcError,
   } = useNFC();
 
-  // lastTag is set by the useNFC hook via AppStateContext when a tag is detected
   const { state: appState, setLastTag } = useAppState();
+  const clientId = appState.clientConfig?.clientID ?? 1;
 
-  // Prevent double navigation on some Android devices
-  const hasNavigatedRef = React.useRef(false);
+  const [isChecking, setIsChecking] = React.useState(false);
+  const [apiError, setApiError] = React.useState<string | null>(null);
+
+  // Pulse animation for the scan icon
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    if (isScanning || isChecking) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.15,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ]),
+      ).start();
+    } else {
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(1);
+    }
+  }, [isScanning, isChecking]);
 
   const handleLogout = async () => {
     try {
@@ -37,54 +70,107 @@ export default function ScanCardScreen() {
     }
   };
 
-  // Auto-start scanning once NFC is ready, stop on unmount
-  React.useEffect(() => {
-    if (nfcSupported && nfcEnabled && !isScanning) {
-      startScanning();
-    }
+  // Restart scanning every time screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      _isProcessingTag = false;
+      setApiError(null);
+      setIsChecking(false);
+      setLastTag(null);
+      if (nfcSupported && nfcEnabled) {
+        startScanning();
+      }
+    }, [nfcSupported, nfcEnabled]),
+  );
 
-    return () => {
-      stopScanning();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nfcSupported, nfcEnabled]);
-
-  // Reset navigation guard each time this screen mounts
+  // Reset state each time screen mounts
   React.useEffect(() => {
-    hasNavigatedRef.current = false;
+    _isProcessingTag = false;
+    setApiError(null);
+    setIsChecking(false);
+    setLastTag(null);
   }, []);
 
-  // Watch for a detected tag via appState and navigate to DriverDetails
+  // Watch for a detected tag and call the API
   React.useEffect(() => {
     if (!appState.lastTag) return;
 
+    if (_isProcessingTag) {
+      console.log("Already processing a tag - ignoring duplicate");
+      setLastTag(null);
+      return;
+    }
+
+    _isProcessingTag = true;
     const tagId = appState.lastTag.id;
-
-    // Clear the tag so it doesn't re-trigger on re-render
     setLastTag(null);
+    setIsChecking(true); // set immediately so spinner shows with no grey flash
+    checkTag(tagId);
+  }, [appState.lastTag]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (!hasNavigatedRef.current) {
-      hasNavigatedRef.current = true;
+  const checkTag = async (tagId: string) => {
+    setApiError(null);
+
+    try {
+      const response = await fetch(
+        "https://mybuddy.my-fleet.dev/api/driver/check-tag",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            tagId: tagId,
+            clientId: clientId,
+          }),
+        },
+      );
+
+      const data = await response.json();
+      console.log("check-tag response:", JSON.stringify(data, null, 2));
+
+      if (!response.ok) {
+        throw new Error(data?.message ?? `Server error (${response.status})`);
+      }
+
+      setIsChecking(false);
+
       router.push({
         pathname: "/DriverDetails",
-        params: { tagId },
+        params: { tagId, inUse: data.inUse ? "true" : "false" },
       });
+    } catch (e: any) {
+      _isProcessingTag = false;
+      setApiError(e?.message ?? "Network error. Please try again.");
+      setIsChecking(false);
+      startScanning();
     }
-  }, [appState.lastTag, setLastTag]);
+  };
+
+  const handleDismissError = () => {
+    _isProcessingTag = false;
+    setApiError(null);
+    startScanning();
+  };
 
   const statusText = (() => {
     if (!nfcSupported) return "NFC not supported on this device";
-    if (!nfcEnabled) return "NFC is disabled in system settings";
-    if (isScanning) return "Scanning… tap your ID tag on the phone";
-    return "Ready to scan";
+    if (!nfcEnabled) return "NFC is disabled — check your settings";
+    if (isChecking) return "Checking tag…";
+    if (isScanning) return "Hold your card to device's NFC reader";
+    return "Scanning...";
   })();
+
+  const iconColor =
+    isScanning || isChecking ? "#2EA6FF" : !nfcEnabled ? "#444" : "#555";
 
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
 
       <LinearGradient
-        colors={["#050A10", "#0A0F16", "#050A10"]}
+        colors={["#050A10", "#0D1520", "#050A10"]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -94,50 +180,70 @@ export default function ScanCardScreen() {
           style={styles.headerIcon}
           resizeMode="contain"
         />
-        <Text style={styles.headerTitle}>Driver Onboarding</Text>
+        <View>
+          <Text style={styles.headerTitle}>Driver Onboarding</Text>
+          {user?.email && <Text style={styles.headerEmail}>{user.email}</Text>}
+        </View>
       </View>
 
       <View style={styles.content}>
-        {user && (
-          <View style={styles.userInfo}>
-            <Text style={styles.userInfoLabel}>Logged in as:</Text>
-            <Text style={styles.userInfoText}>
-              {user.name || user.email || "User"}
+        {/* Main scan area */}
+        {!apiError && (
+          <View style={styles.scanArea}>
+            <Text style={styles.title}>Scan ID Tag</Text>
+            <Text style={styles.subtitle}>
+              Assign or replace a driver's NFC card
             </Text>
-            {user.name && user.email && (
-              <Text style={styles.userInfoEmail}>{user.email}</Text>
+
+            {isChecking ? (
+              <ActivityIndicator
+                size={80}
+                color="#2EA6FF"
+                style={styles.icon}
+              />
+            ) : (
+              <Animated.View
+                style={[styles.icon, { transform: [{ scale: pulseAnim }] }]}
+              >
+                {isScanning && <View style={styles.glowRing} />}
+                <MaterialCommunityIcons
+                  name="access-point"
+                  size={200}
+                  color={iconColor}
+                />
+              </Animated.View>
+            )}
+
+            <Text style={styles.statusText}>{statusText}</Text>
+
+            {nfcError && (
+              <Text style={styles.errorTextSmall}>NFC Error: {nfcError}</Text>
             )}
           </View>
         )}
 
-        <Text style={styles.title}>Scan your ID tag</Text>
-
-        <MaterialCommunityIcons
-          name="access-point"
-          size={110}
-          color={isScanning ? "#2EA6FF" : "#666666"}
-          style={{ marginTop: 26 }}
-        />
-
-        <Text style={{ color: "rgba(255,255,255,0.85)", marginTop: 14 }}>
-          {statusText}
-        </Text>
-
-        {nfcError ? (
-          <Text style={{ color: "#FF6B6B", marginTop: 8 }}>{nfcError}</Text>
-        ) : null}
-
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() => router.push("/DriverDetails")}
-        >
-          <Text style={styles.primaryButtonText}>Go to Driver Details</Text>
-        </Pressable>
-
-        <Pressable style={styles.secondaryButton} onPress={handleLogout}>
-          <Text style={styles.secondaryButtonText}>Logout</Text>
-        </Pressable>
+        {/* API / network error */}
+        {apiError && (
+          <View style={styles.errorBox}>
+            <MaterialCommunityIcons name="wifi-off" size={28} color="#FF6B6B" />
+            <Text style={styles.errorTitle}>Something went wrong</Text>
+            <Text style={styles.errorBody}>{apiError}</Text>
+            <Pressable style={styles.outlineBtn} onPress={handleDismissError}>
+              <Text style={styles.outlineBtnText}>Try again</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
+
+      {/* Logout bottom right */}
+      <Pressable style={styles.logoutBtn} onPress={handleLogout}>
+        <MaterialCommunityIcons
+          name="logout"
+          size={16}
+          color="rgba(255,255,255,0.4)"
+        />
+        <Text style={styles.logoutText}>Logout</Text>
+      </Pressable>
     </View>
   );
 }
@@ -152,8 +258,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  headerIcon: { width: 26, height: 26 },
-  headerTitle: { color: "white", fontSize: 18, fontWeight: "600" },
+  headerIcon: { width: 30, height: 30 },
+  headerTitle: { color: "white", fontSize: 20, fontWeight: "600" },
+  headerEmail: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 14,
+  },
 
   content: {
     flex: 1,
@@ -161,66 +271,100 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
+
+  scanArea: {
+    alignItems: "center",
+    gap: 8,
+  },
   title: {
     color: "white",
-    fontSize: 22,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-
-  userInfo: {
-    marginBottom: 32,
-    padding: 16,
-    backgroundColor: "rgba(46, 166, 255, 0.1)",
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: "#2EA6FF",
-    width: "100%",
-  },
-  userInfoLabel: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 11,
-    marginBottom: 4,
-    textTransform: "uppercase",
-  },
-  userInfoText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  userInfoEmail: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 13,
-    marginTop: 2,
-  },
-
-  primaryButton: {
-    marginTop: 18,
-    height: 44,
-    width: 220,
-    borderRadius: 6,
-    backgroundColor: "#2EA6FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryButtonText: {
-    color: "#0A0F16",
+    fontSize: 35,
     fontWeight: "700",
+    textAlign: "center",
+    letterSpacing: 0.5,
   },
-
-  secondaryButton: {
-    marginTop: 12,
-    height: 44,
-    width: 220,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+  subtitle: {
+    color: "rgba(255,255,255,0.45)",
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  icon: {
+    marginVertical: 24,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.2)",
   },
-  secondaryButtonText: {
-    color: "rgba(255,255,255,0.8)",
+  glowRing: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(46,166,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(46,166,255,0.2)",
+  },
+  statusText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 4,
+  },
+  errorTextSmall: {
+    color: "#FF6B6B",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 8,
+  },
+
+  errorBox: {
+    width: "100%",
+    backgroundColor: "rgba(255,107,107,0.08)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,107,107,0.3)",
+    padding: 20,
+    alignItems: "center",
+    gap: 8,
+  },
+  errorTitle: {
+    color: "#FF6B6B",
+    fontWeight: "700",
+    fontSize: 17,
+    marginTop: 4,
+  },
+  errorBody: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+
+  outlineBtn: {
+    width: "100%",
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outlineBtnText: {
+    color: "rgba(255,255,255,0.7)",
     fontWeight: "600",
+    fontSize: 14,
+  },
+
+  logoutBtn: {
+    position: "absolute",
+    bottom: 24,
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    padding: 8,
+  },
+  logoutText: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 16,
   },
 });
