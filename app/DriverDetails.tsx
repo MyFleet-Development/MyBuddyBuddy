@@ -1,6 +1,5 @@
 import { useAppState } from "@/contexts/AppStateContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
@@ -34,17 +33,13 @@ function Screen({
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
-      <LinearGradient
-        colors={["#050A10", "#0D1520", "#050A10"]}
-        style={StyleSheet.absoluteFillObject}
-      />
       <View style={styles.header}>
         <Image
           source={require("../assets/images/icon.png")}
           style={styles.headerIcon}
           resizeMode="contain"
         />
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Driver Onboarding</Text>
           {email && <Text style={styles.headerEmail}>{email}</Text>}
         </View>
@@ -89,6 +84,7 @@ export default function DriverDetailsScreen() {
   );
   const [isReplacing, setIsReplacing] = React.useState(false);
   const [replaceError, setReplaceError] = React.useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState("");
 
   // ─── Success state ────────────────────────────────────────────────────────────
   const [successMessage, setSuccessMessage] = React.useState<string | null>(
@@ -207,9 +203,9 @@ export default function DriverDetailsScreen() {
   const TagBadge = () => (
     <View style={styles.tagBadge}>
       <MaterialCommunityIcons
-        name="credit-card-wireless"
+        name="credit-card-lock"
         size={13}
-        color="#2EA6FF"
+        color="#60A5FA"
       />
       <Text style={styles.tagBadgeText}>{tagId}</Text>
     </View>
@@ -224,7 +220,7 @@ export default function DriverDetailsScreen() {
             <MaterialCommunityIcons
               name="check-circle"
               size={64}
-              color="#2EA6FF"
+              color="#22C55E"
             />
           </View>
           <Text style={styles.successTitle}>All Done!</Text>
@@ -246,26 +242,25 @@ export default function DriverDetailsScreen() {
       <Screen email={user?.email}>
         <View style={styles.centeredCard}>
           <MaterialCommunityIcons
-            name="credit-card-wireless"
+            name="credit-card-edit-outline"
             size={48}
-            color="#2EA6FF"
+            color="#3B82F6"
             style={{ marginBottom: 8 }}
           />
           <Text style={styles.cardTitle}>What would you like to do?</Text>
-          <Text style={styles.cardSubtitle}>with this tag</Text>
-          <TagBadge />
+          <Text style={styles.cardSubtitle}>tag : {tagId}</Text>
 
-          {/* Warning banner when tag is already in use */}
           {inUse === "true" && (
             <View style={styles.inUseBanner}>
               <MaterialCommunityIcons
                 name="alert-circle"
                 size={16}
-                color="#FF9500"
+                color="#F59E0B"
               />
               <Text style={styles.inUseBannerText}>
-                This tag is already assigned to a driver. You can replace it
-                with a new driver, or assign it to an existing driver below.
+                Warning: This tag is already assigned to a driver. You can
+                replace it with a new driver, or assign it to an existing driver
+                below.
               </Text>
             </View>
           )}
@@ -276,7 +271,7 @@ export default function DriverDetailsScreen() {
                 <MaterialCommunityIcons
                   name="account-plus"
                   size={26}
-                  color="#2EA6FF"
+                  color="#3B82F6"
                 />
               </View>
               <View style={styles.choiceCardText}>
@@ -288,7 +283,7 @@ export default function DriverDetailsScreen() {
               <MaterialCommunityIcons
                 name="chevron-right"
                 size={20}
-                color="rgba(255,255,255,0.3)"
+                color="#9CA3AF"
               />
             </Pressable>
 
@@ -300,19 +295,25 @@ export default function DriverDetailsScreen() {
                 <MaterialCommunityIcons
                   name="account-switch"
                   size={26}
-                  color="#2EA6FF"
+                  color="#3B82F6"
                 />
               </View>
               <View style={styles.choiceCardText}>
-                <Text style={styles.choiceCardTitle}>Reassign Tag</Text>
+                <Text style={styles.choiceCardTitle}>
+                  {inUse === "true"
+                    ? "Reassign Tag"
+                    : "Assign to Existing Driver"}
+                </Text>
                 <Text style={styles.choiceCardDesc}>
-                  Assign this tag to an existing driver
+                  {inUse === "true"
+                    ? "Assign this tag to a different existing driver"
+                    : "Assign this tag to an existing driver"}
                 </Text>
               </View>
               <MaterialCommunityIcons
                 name="chevron-right"
                 size={20}
-                color="rgba(255,255,255,0.3)"
+                color="#9CA3AF"
               />
             </Pressable>
           </View>
@@ -341,7 +342,7 @@ export default function DriverDetailsScreen() {
               onChangeText={setDriverName}
               style={styles.input}
               placeholder="Enter full name"
-              placeholderTextColor="rgba(255,255,255,0.25)"
+              placeholderTextColor="#4B5563"
               autoCapitalize="words"
             />
 
@@ -351,7 +352,7 @@ export default function DriverDetailsScreen() {
               onChangeText={setDriverPin}
               style={styles.input}
               placeholder="Enter PIN"
-              placeholderTextColor="rgba(255,255,255,0.25)"
+              placeholderTextColor="#4B5563"
               secureTextEntry
               keyboardType="numeric"
             />
@@ -362,7 +363,7 @@ export default function DriverDetailsScreen() {
               <MaterialCommunityIcons
                 name="alert-circle-outline"
                 size={16}
-                color="#FF6B6B"
+                color="#D7282F"
               />
               <Text style={styles.errorText}>{addError}</Text>
             </View>
@@ -375,7 +376,7 @@ export default function DriverDetailsScreen() {
               disabled={isAdding}
             >
               {isAdding ? (
-                <ActivityIndicator color="#0A0F16" />
+                <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.primaryBtnText}>Add Driver</Text>
               )}
@@ -393,6 +394,10 @@ export default function DriverDetailsScreen() {
   }
 
   // ─── Replace ──────────────────────────────────────────────────────────────────
+  const filteredDrivers = drivers.filter((d) =>
+    d.driverName.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
   return (
     <Screen email={user?.email}>
       <View style={styles.replaceCard}>
@@ -401,90 +406,108 @@ export default function DriverDetailsScreen() {
           Select a driver to assign this tag to: {tagId}
         </Text>
 
-        {isLoadingDrivers && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator color="#2EA6FF" size="large" />
-            <Text style={styles.loadingText}>Loading drivers…</Text>
-          </View>
-        )}
-
-        {loadDriversError && (
-          <View style={styles.errorBox}>
-            <MaterialCommunityIcons
-              name="alert-circle-outline"
-              size={16}
-              color="#FF6B6B"
+        {/* Search bar + list as one seamless container */}
+        <View style={styles.listContainer}>
+          <View style={styles.searchBar}>
+            <MaterialCommunityIcons name="magnify" size={20} color="#4B5563" />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search drivers..."
+              placeholderTextColor="#4B5563"
+              style={styles.searchInput}
             />
-            <Text style={styles.errorText}>{loadDriversError}</Text>
-            <Pressable style={styles.retryBtn} onPress={fetchDrivers}>
-              <Text style={styles.retryBtnText}>Retry</Text>
-            </Pressable>
           </View>
-        )}
 
-        {!isLoadingDrivers && !loadDriversError && (
-          <FlatList
-            data={drivers}
-            keyExtractor={(item) => item.driverId.toString()}
-            style={styles.driverList}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const isSelected = selectedDriver?.driverId === item.driverId;
-              return (
-                <Pressable
-                  style={[
-                    styles.driverRow,
-                    isSelected && styles.driverRowSelected,
-                  ]}
-                  onPress={() => setSelectedDriver(item)}
-                >
-                  <View
+          {isLoadingDrivers && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="#3B82F6" size="large" />
+              <Text style={styles.loadingText}>Loading drivers…</Text>
+            </View>
+          )}
+
+          {loadDriversError && (
+            <View style={styles.errorBox}>
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={16}
+                color="#D7282F"
+              />
+              <Text style={styles.errorText}>{loadDriversError}</Text>
+              <Pressable style={styles.retryBtn} onPress={fetchDrivers}>
+                <Text style={styles.retryBtnText}>Retry</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {!isLoadingDrivers && !loadDriversError && (
+            <FlatList
+              data={filteredDrivers}
+              keyExtractor={(item) => item.driverId.toString()}
+              style={styles.driverList}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const isSelected = selectedDriver?.driverId === item.driverId;
+                return (
+                  <Pressable
                     style={[
-                      styles.driverAvatar,
-                      isSelected && styles.driverAvatarSelected,
+                      styles.driverRow,
+                      isSelected && styles.driverRowSelected,
                     ]}
+                    onPress={() => setSelectedDriver(item)}
                   >
-                    <Text style={styles.driverAvatarText}>
-                      {item.driverName.charAt(0).toUpperCase()}
+                    <View
+                      style={[
+                        styles.driverAvatar,
+                        isSelected && styles.driverAvatarSelected,
+                      ]}
+                    >
+                      <Text style={styles.driverAvatarText}>
+                        {item.driverName.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.driverRowText,
+                        isSelected && styles.driverRowTextSelected,
+                      ]}
+                    >
+                      {item.driverName}
                     </Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.driverRowText,
-                      isSelected && styles.driverRowTextSelected,
-                    ]}
-                  >
-                    {item.driverName}
+                    {isSelected && (
+                      <MaterialCommunityIcons
+                        name="check-circle"
+                        size={20}
+                        color="#3B82F6"
+                      />
+                    )}
+                  </Pressable>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={styles.emptyList}>
+                  <MaterialCommunityIcons
+                    name="account-off-outline"
+                    size={36}
+                    color="#374151"
+                  />
+                  <Text style={styles.emptyListText}>
+                    {searchQuery
+                      ? "No drivers match your search"
+                      : "No drivers found"}
                   </Text>
-                  {isSelected && (
-                    <MaterialCommunityIcons
-                      name="check-circle"
-                      size={20}
-                      color="#2EA6FF"
-                    />
-                  )}
-                </Pressable>
-              );
-            }}
-            ListEmptyComponent={
-              <View style={styles.emptyList}>
-                <MaterialCommunityIcons
-                  name="account-off-outline"
-                  size={36}
-                  color="rgba(255,255,255,0.2)"
-                />
-                <Text style={styles.emptyListText}>No drivers found</Text>
-              </View>
-            }
-          />
-        )}
+                </View>
+              }
+            />
+          )}
+        </View>
 
         {replaceError && (
           <View style={styles.errorBox}>
             <MaterialCommunityIcons
               name="alert-circle-outline"
               size={16}
-              color="#FF6B6B"
+              color="#D7282F"
             />
             <Text style={styles.errorText}>{replaceError}</Text>
           </View>
@@ -500,7 +523,7 @@ export default function DriverDetailsScreen() {
             disabled={!selectedDriver || isReplacing}
           >
             {isReplacing ? (
-              <ActivityIndicator color="#0A0F16" />
+              <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.primaryBtnText}>Confirm Reassignment</Text>
             )}
@@ -515,20 +538,28 @@ export default function DriverDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#050A10" },
+  root: { flex: 1, backgroundColor: "#0D0D0D" },
 
+  // ─── Header ──────────────────────────────────────────────────────────────────
   header: {
     paddingTop: 44,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1F2430",
   },
   headerIcon: { width: 30, height: 30 },
-  headerTitle: { color: "white", fontSize: 20, fontWeight: "600" },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "800",
+  },
   headerEmail: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 14,
+    color: "#9CA3AF",
+    fontSize: 12,
     marginTop: 1,
   },
 
@@ -539,6 +570,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
 
+  // ─── Card containers ──────────────────────────────────────────────────────────
   centeredCard: {
     flex: 1,
     alignItems: "center",
@@ -556,35 +588,37 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
 
+  // ─── Typography ───────────────────────────────────────────────────────────────
   cardTitle: {
-    color: "white",
+    color: "#fff",
     fontSize: 22,
-    fontWeight: "700",
+    fontWeight: "900",
     textAlign: "center",
     letterSpacing: 0.3,
   },
   cardSubtitle: {
-    color: "rgba(255,255,255,0.4)",
+    color: "#9CA3AF",
     fontSize: 13,
     textAlign: "center",
     marginTop: 4,
     marginBottom: 12,
   },
 
+  // ─── Tag badge ────────────────────────────────────────────────────────────────
   tagBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(46,166,255,0.1)",
+    backgroundColor: "#0F121A",
     borderWidth: 1,
-    borderColor: "rgba(46,166,255,0.25)",
+    borderColor: "#1F2430",
     borderRadius: 20,
     paddingVertical: 5,
     paddingHorizontal: 12,
     marginBottom: 16,
   },
   tagBadgeText: {
-    color: "#2EA6FF",
+    color: "#60A5FA",
     fontSize: 11,
     fontFamily: "monospace",
     letterSpacing: 0.5,
@@ -595,20 +629,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(255,149,0,0.08)",
+    backgroundColor: "#1A1505",
     borderWidth: 1,
-    borderColor: "rgba(255,149,0,0.25)",
+    borderColor: "#92400E",
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
     width: "100%",
   },
   inUseBannerText: {
-    color: "#FF9500",
+    color: "#F59E0B",
     fontSize: 13,
     flex: 1,
   },
 
+  // ─── Choice cards ─────────────────────────────────────────────────────────────
   choiceGroup: {
     width: "100%",
     gap: 10,
@@ -617,41 +652,44 @@ const styles = StyleSheet.create({
   choiceCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "#1A1A1A",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    borderRadius: 12,
+    borderColor: "#1F2430",
+    borderRadius: 14,
     padding: 16,
     gap: 14,
   },
   choiceCardIcon: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(46,166,255,0.1)",
+    borderRadius: 12,
+    backgroundColor: "#0F121A",
+    borderWidth: 1,
+    borderColor: "#1F2430",
     alignItems: "center",
     justifyContent: "center",
   },
   choiceCardText: { flex: 1 },
   choiceCardTitle: {
-    color: "white",
+    color: "#fff",
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "800",
   },
   choiceCardDesc: {
-    color: "rgba(255,255,255,0.4)",
+    color: "#9CA3AF",
     fontSize: 12,
     marginTop: 2,
   },
 
+  // ─── Form ─────────────────────────────────────────────────────────────────────
   fieldGroup: {
     marginTop: 8,
     marginBottom: 8,
   },
   label: {
-    color: "rgba(255,255,255,0.5)",
+    color: "#9CA3AF",
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 6,
@@ -659,71 +697,101 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 46,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "#1F2430",
     paddingHorizontal: 14,
-    color: "white",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    color: "#fff",
+    backgroundColor: "#0F121A",
     marginBottom: 14,
     fontSize: 15,
   },
 
+  // ─── Search + list container ──────────────────────────────────────────────────
+  listContainer: {
+    flex: 1,
+    backgroundColor: "#1A1A1A",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#1F2430",
+    overflow: "hidden",
+    marginTop: 8,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1A1A1A",
+    paddingHorizontal: 12,
+    height: 46,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1F2430",
+  },
+  searchInput: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 14,
+    height: "100%",
+  },
+
+  // ─── Driver list ──────────────────────────────────────────────────────────────
   driverList: {
     flex: 1,
-    marginTop: 8,
   },
   driverRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
-    marginBottom: 8,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderBottomWidth: 1,
+    borderBottomColor: "#1F2430",
     gap: 12,
   },
   driverRowSelected: {
-    borderColor: "#2EA6FF",
-    backgroundColor: "rgba(46,166,255,0.08)",
+    backgroundColor: "#0F121A",
   },
   driverAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "#0F121A",
+    borderWidth: 1,
+    borderColor: "#1F2430",
     alignItems: "center",
     justifyContent: "center",
   },
   driverAvatarSelected: {
-    backgroundColor: "rgba(46,166,255,0.2)",
+    backgroundColor: "#1D3461",
+    borderColor: "#3B82F6",
   },
   driverAvatarText: {
-    color: "rgba(255,255,255,0.7)",
+    color: "#9CA3AF",
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "800",
   },
   driverRowText: {
     flex: 1,
-    color: "rgba(255,255,255,0.75)",
+    color: "#9CA3AF",
     fontSize: 15,
+    fontWeight: "700",
   },
   driverRowTextSelected: {
-    color: "white",
-    fontWeight: "600",
+    color: "#fff",
+    fontWeight: "800",
   },
 
+  // ─── Loading / empty ──────────────────────────────────────────────────────────
   loadingContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    padding: 32,
     gap: 12,
   },
   loadingText: {
-    color: "rgba(255,255,255,0.4)",
+    color: "#9CA3AF",
     fontSize: 14,
+    fontWeight: "700",
   },
   emptyList: {
     alignItems: "center",
@@ -731,27 +799,31 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   emptyListText: {
-    color: "rgba(255,255,255,0.25)",
+    color: "#374151",
     fontSize: 14,
+    fontWeight: "700",
   },
 
+  // ─── Success ──────────────────────────────────────────────────────────────────
   successIcon: {
     width: 100,
     height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(46,166,255,0.1)",
+    borderRadius: 24,
+    backgroundColor: "#0F121A",
+    borderWidth: 1,
+    borderColor: "#1F2430",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
   successTitle: {
-    color: "white",
-    fontSize: 24,
-    fontWeight: "700",
+    color: "#fff",
+    fontSize: 26,
+    fontWeight: "900",
     marginBottom: 8,
   },
   successBody: {
-    color: "rgba(255,255,255,0.5)",
+    color: "#9CA3AF",
     fontSize: 14,
     textAlign: "center",
     lineHeight: 22,
@@ -759,35 +831,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
+  // ─── Error ────────────────────────────────────────────────────────────────────
   errorBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(255,107,107,0.08)",
-    borderRadius: 8,
+    backgroundColor: "#1A0A0A",
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,107,107,0.2)",
+    borderColor: "#7F1D1D",
     padding: 12,
     marginBottom: 12,
     flexWrap: "wrap",
   },
   errorText: {
-    color: "#FF6B6B",
+    color: "#FCA5A5",
     fontSize: 13,
     flex: 1,
   },
   retryBtn: {
     paddingVertical: 4,
     paddingHorizontal: 12,
-    borderRadius: 4,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "#2A3242",
+    backgroundColor: "#0B0B0D",
   },
   retryBtnText: {
-    color: "rgba(255,255,255,0.7)",
+    color: "#C7D2FE",
     fontSize: 12,
+    fontWeight: "700",
   },
 
+  // ─── Actions ──────────────────────────────────────────────────────────────────
   actions: {
     gap: 10,
     paddingTop: 8,
@@ -795,31 +871,32 @@ const styles = StyleSheet.create({
   primaryBtn: {
     height: 50,
     borderRadius: 10,
-    backgroundColor: "#2EA6FF",
+    backgroundColor: "#3B82F6",
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
   },
   primaryBtnText: {
-    color: "#0A0F16",
+    color: "#fff",
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   btnDisabled: {
-    backgroundColor: "rgba(46,166,255,0.25)",
+    backgroundColor: "#1D3461",
   },
   cancelBtn: {
     height: 44,
     width: "100%",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "#2A3242",
+    backgroundColor: "#0B0B0D",
     alignItems: "center",
     justifyContent: "center",
   },
   cancelBtnText: {
-    color: "rgba(255,255,255,0.5)",
+    color: "#C7D2FE",
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "700",
   },
 });

@@ -1,7 +1,6 @@
 import { useAppState } from "@/contexts/AppStateContext";
 import { useNFC } from "@/hooks/useNFC";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
@@ -12,6 +11,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useAuth0 } from "react-native-auth0";
@@ -21,6 +21,8 @@ let _isProcessingTag = false;
 
 export default function ScanCardScreen() {
   const { user, clearCredentials } = useAuth0();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   const {
     isSupported: nfcSupported,
@@ -104,7 +106,7 @@ export default function ScanCardScreen() {
     _isProcessingTag = true;
     const tagId = appState.lastTag.id;
     setLastTag(null);
-    setIsChecking(true); // set immediately so spinner shows with no grey flash
+    setIsChecking(true);
     checkTag(tagId);
   }, [appState.lastTag]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -163,58 +165,82 @@ export default function ScanCardScreen() {
   })();
 
   const iconColor =
-    isScanning || isChecking ? "#2EA6FF" : !nfcEnabled ? "#444" : "#555";
+    isScanning || isChecking ? "#3B82F6" : !nfcEnabled ? "#333" : "#444";
+
+  const iconSize = Math.min(width, height) * 0.38;
 
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
 
-      <LinearGradient
-        colors={["#050A10", "#0D1520", "#050A10"]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      <View style={styles.header}>
+      {/* Header */}
+      <View style={[styles.header, isLandscape && styles.headerLandscape]}>
         <Image
           source={require("../../assets/images/icon.png")}
           style={styles.headerIcon}
           resizeMode="contain"
         />
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Driver Onboarding</Text>
           {user?.email && <Text style={styles.headerEmail}>{user.email}</Text>}
         </View>
+        <Pressable style={styles.logoutBtn} onPress={handleLogout}>
+          <MaterialCommunityIcons name="logout" size={16} color="#9CA3AF" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </Pressable>
       </View>
 
+      {/* Content */}
       <View style={styles.content}>
-        {/* Main scan area */}
         {!apiError && (
-          <View style={styles.scanArea}>
-            <Text style={styles.title}>Scan ID Tag</Text>
-            <Text style={styles.subtitle}>
+          <View style={styles.card}>
+            <Text style={[styles.title, isLandscape && styles.titleLandscape]}>
+              Scan ID Tag
+            </Text>
+            <Text
+              style={[styles.subtitle, isLandscape && styles.subtitleLandscape]}
+            >
               Assign or replace a driver's NFC card
             </Text>
 
             {isChecking ? (
               <ActivityIndicator
-                size={80}
-                color="#2EA6FF"
+                size={isLandscape ? 60 : 80}
+                color="#3B82F6"
                 style={styles.icon}
               />
             ) : (
               <Animated.View
                 style={[styles.icon, { transform: [{ scale: pulseAnim }] }]}
               >
-                {isScanning && <View style={styles.glowRing} />}
+                {isScanning && (
+                  <View
+                    style={[
+                      styles.glowRing,
+                      {
+                        width: iconSize * 1.3,
+                        height: iconSize * 1.3,
+                        borderRadius: iconSize * 0.65,
+                      },
+                    ]}
+                  />
+                )}
                 <MaterialCommunityIcons
                   name="access-point"
-                  size={200}
+                  size={iconSize}
                   color={iconColor}
                 />
               </Animated.View>
             )}
 
-            <Text style={styles.statusText}>{statusText}</Text>
+            <Text
+              style={[
+                styles.statusText,
+                isLandscape && styles.statusTextLandscape,
+              ]}
+            >
+              {statusText}
+            </Text>
 
             {nfcError && (
               <Text style={styles.errorTextSmall}>NFC Error: {nfcError}</Text>
@@ -222,10 +248,9 @@ export default function ScanCardScreen() {
           </View>
         )}
 
-        {/* API / network error */}
         {apiError && (
-          <View style={styles.errorBox}>
-            <MaterialCommunityIcons name="wifi-off" size={28} color="#FF6B6B" />
+          <View style={styles.errorCard}>
+            <MaterialCommunityIcons name="wifi-off" size={28} color="#D7282F" />
             <Text style={styles.errorTitle}>Something went wrong</Text>
             <Text style={styles.errorBody}>{apiError}</Text>
             <Pressable style={styles.outlineBtn} onPress={handleDismissError}>
@@ -234,37 +259,58 @@ export default function ScanCardScreen() {
           </View>
         )}
       </View>
-
-      {/* Logout bottom right */}
-      <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-        <MaterialCommunityIcons
-          name="logout"
-          size={16}
-          color="rgba(255,255,255,0.4)"
-        />
-        <Text style={styles.logoutText}>Logout</Text>
-      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#050A10" },
+  root: { flex: 1, backgroundColor: "#0D0D0D" },
 
+  // ─── Header ──────────────────────────────────────────────────────────────────
   header: {
     paddingTop: 44,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1F2430",
+  },
+  headerLandscape: {
+    paddingTop: 16,
   },
   headerIcon: { width: 30, height: 30 },
-  headerTitle: { color: "white", fontSize: 20, fontWeight: "600" },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "800",
+  },
   headerEmail: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 14,
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginTop: 1,
   },
 
+  // ─── Logout ───────────────────────────────────────────────────────────────────
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#1F2430",
+    backgroundColor: "#0F121A",
+  },
+  logoutText: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  // ─── Content ─────────────────────────────────────────────────────────────────
   content: {
     flex: 1,
     alignItems: "center",
@@ -272,99 +318,95 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 
-  scanArea: {
+  // ─── Scan card ────────────────────────────────────────────────────────────────
+  card: {
+    width: "100%",
     alignItems: "center",
     gap: 8,
   },
   title: {
-    color: "white",
-    fontSize: 35,
-    fontWeight: "700",
+    color: "#fff",
+    fontSize: 26,
+    fontWeight: "900",
     textAlign: "center",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+  },
+  titleLandscape: {
+    fontSize: 20,
   },
   subtitle: {
-    color: "rgba(255,255,255,0.45)",
-    fontSize: 14,
+    color: "#9CA3AF",
+    fontSize: 13,
     textAlign: "center",
     marginBottom: 8,
   },
+  subtitleLandscape: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
   icon: {
-    marginVertical: 24,
+    marginVertical: 16,
     alignItems: "center",
     justifyContent: "center",
   },
   glowRing: {
     position: "absolute",
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "rgba(46,166,255,0.08)",
+    backgroundColor: "rgba(59,130,246,0.07)",
     borderWidth: 1,
-    borderColor: "rgba(46,166,255,0.2)",
+    borderColor: "rgba(59,130,246,0.2)",
   },
   statusText: {
-    color: "rgba(255,255,255,0.7)",
+    color: "#9CA3AF",
     fontSize: 14,
     textAlign: "center",
+    fontWeight: "700",
     marginTop: 4,
   },
+  statusTextLandscape: {
+    fontSize: 12,
+  },
   errorTextSmall: {
-    color: "#FF6B6B",
+    color: "#D7282F",
     fontSize: 12,
     textAlign: "center",
     marginTop: 8,
   },
 
-  errorBox: {
+  // ─── Error card ───────────────────────────────────────────────────────────────
+  errorCard: {
     width: "100%",
-    backgroundColor: "rgba(255,107,107,0.08)",
-    borderRadius: 14,
+    backgroundColor: "#1A1A1A",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,107,107,0.3)",
-    padding: 20,
+    borderColor: "#2A1A1A",
+    padding: 32,
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
   errorTitle: {
-    color: "#FF6B6B",
-    fontWeight: "700",
-    fontSize: 17,
-    marginTop: 4,
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 18,
   },
   errorBody: {
-    color: "rgba(255,255,255,0.6)",
+    color: "#9CA3AF",
     fontSize: 13,
     textAlign: "center",
     marginBottom: 8,
   },
-
   outlineBtn: {
     width: "100%",
-    height: 44,
-    borderRadius: 8,
+    height: 46,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "#2A3242",
+    backgroundColor: "#0B0B0D",
     alignItems: "center",
     justifyContent: "center",
   },
   outlineBtnText: {
-    color: "rgba(255,255,255,0.7)",
-    fontWeight: "600",
+    color: "#C7D2FE",
+    fontWeight: "700",
     fontSize: 14,
-  },
-
-  logoutBtn: {
-    position: "absolute",
-    bottom: 24,
-    right: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    padding: 8,
-  },
-  logoutText: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 16,
   },
 });
