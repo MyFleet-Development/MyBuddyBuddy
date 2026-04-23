@@ -33,7 +33,7 @@ export default function ScanCardScreen() {
   } = useNFC();
 
   const { state: appState, setLastTag } = useAppState();
-  const clientId = appState.clientConfig?.clientID ?? 1;
+  const clientId = appState.clientConfig!.clientID;
 
   const [isChecking, setIsChecking] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);

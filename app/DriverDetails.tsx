@@ -61,7 +61,7 @@ export default function DriverDetailsScreen() {
   }>();
   const { user } = useAuth0();
   const { state: appState } = useAppState();
-  const clientId = appState.clientConfig?.clientID ?? 1;
+  const clientId = appState.clientConfig!.clientID;
 
   const [mode, setMode] = React.useState<Mode>(
     modeParam === "replace" ? "replace" : "choose",
@@ -293,7 +293,7 @@ export default function DriverDetailsScreen() {
             >
               <View style={styles.choiceCardIcon}>
                 <MaterialCommunityIcons
-                  name="account-switch"
+                  name="account-arrow-right"
                   size={26}
                   color="#3B82F6"
                 />
@@ -333,7 +333,7 @@ export default function DriverDetailsScreen() {
         <View style={styles.formCard}>
           <Text style={styles.cardTitle}>Add New Driver</Text>
           <Text style={styles.cardSubtitle}>Fill in the details below</Text>
-          <TagBadge />
+          <Text style={styles.cardSubtitle}>tag : {tagId}</Text>
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Driver Name</Text>
